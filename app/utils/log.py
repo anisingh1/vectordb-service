@@ -26,8 +26,8 @@ class _Logger():
 		self.logLevel = logLevel
 		logger.remove()
 		log_format = "<green>{time:D MMM YYYY hh:mm:ss A!UTC}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({name}):</yellow> {message}"
-		logger.configure(patcher=self.batch)
 		logger.add(sys.stdout, level=logLevel, format=log_format, colorize=True, backtrace=True, diagnose=False)
+		self.logger = logger
   
   
 	def initialize(self):

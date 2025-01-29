@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from sentence_transformers import SentenceTransformer, SimilarityFunction
 
 
 class BaseEmbedder(ABC):
@@ -16,7 +17,7 @@ class Embedder(BaseEmbedder):
     pre-trained model.
     """
 
-    def __init__(self, model_name: str | None = None):
+    def __init__(self, model_name: str = ''):
         """
         Initializes the Embedder with a specified model.
 
@@ -25,10 +26,11 @@ class Embedder(BaseEmbedder):
         """
         self.sbert = True
         print("Initiliazing embeddings: ", model_name)
-        if model_name == None:
+        if model_name == '':
             model_name = "model/paraphrase-multilingual-MiniLM-L12-v2"
 
         self.model = SentenceTransformer(model_name)
+        self.model.similarity_fn_name = SimilarityFunction.COSINE
         print("OK.")
         
 
@@ -44,3 +46,19 @@ class Embedder(BaseEmbedder):
         else:
             embeddings = self.model(chunks).numpy().tolist()
         return embeddings
+    
+    
+    def search_vectors(self, query_embedding: List[float], embeddings: List[List[float]], top_n: int) -> List[int]:
+        """
+        Searches for the most similar vectors to the query_embedding in the given embeddings.
+
+        :param query_embedding: a list of floats representing the query vector.
+        :param embeddings: a list of vectors to be searched, where each vector is a list of floats.
+        :param top_n: the number of most similar vectors to return.
+        :return: a list of indices of the top_n most similar vectors in the embeddings.
+        """
+        if isinstance(embeddings, list):
+            embeddings = np.array(embeddings).astype(np.float32)
+
+        indices = self.model.similarity(query_embedding, embeddings)
+        return indices

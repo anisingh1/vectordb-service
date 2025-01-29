@@ -1,4 +1,4 @@
-import os
+import os, sys
 import json
 import uuid
 import argparse
@@ -7,8 +7,6 @@ import uvicorn
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-
-from vectordb import Memory
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Request
@@ -16,8 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from utils import LoggerInit, Logger
-from .exp_handler import unhandledExceptionHandler
-from .interface import (HealthResponse, InfoResponse, ErrorResponse)
+from utils.interface import (HealthResponse, InfoResponse, ErrorResponse)
+from vectordb import Memory
 
 
 
@@ -55,6 +53,20 @@ with open(model_config) as f:
 LoggerInit()
 
 
+# Exception Handler
+async def unhandledExceptionHandler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    This middleware will log all unhandled exceptions.
+    Unhandled exceptions are all exceptions that are not HTTPExceptions or RequestValidationErrors.
+    """
+    id = str(uuid.uuid4())
+    exception_type, exception_value, exception_traceback = sys.exc_info()
+    exception_name = getattr(exception_type, "__name__", None)
+    response = ErrorResponse(request_id=id, code=str(500000), error=str(exception_name)).model_dump()
+    logger.error(response)
+    return JSONResponse(response, status_code=500)
+
+
 # Setting configurable parameters
 parser = argparse.ArgumentParser(description="RESTful API server.")
 
@@ -88,8 +100,8 @@ parser.add_argument("--allowed-headers",
 
 
 # Start Vector DB
-vector_store = Memory(embeddings=model_path)
-vector_store.save("Hello", 'World')
+vector_store = Memory(model=model_path)
+vector_store.save("Hello World", 'World')
 
 # FastAPI app
 app = FastAPI(title="VectorDB Service",
@@ -158,7 +170,7 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret)
         
     except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + e).model_dump()
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
         logger.error(e)
         return JSONResponse(ret, status_code=500)
 
@@ -185,24 +197,27 @@ async def add(request: Request) -> Response:
         top_n = 3
 
     try:
-        cached_results = vector_store.search(text=text, top_n=top_n)
+        cached_results = vector_store.search(query=text, top_n=1)
         if len(cached_results) == 1 and cached_results[0]['distance'] == 0:
-            metadata = cached_results[0]['metadata']
+            results = []
+            for i in cached_results:
+                results.append({
+                    "text": i['chunk'],
+                    "metadata": i['metadata']
+                })
             ret = {
                 "request_id": id,
-                "text": text,
-                "metadata": metadata
+                "results": results
             }
         else:
             ret = {
                 "request_id": id,
-                "text": text,
-                "metadata": []
+                "results": []
             }
         return JSONResponse(ret)
         
     except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + e).model_dump()
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
         logger.error(e)
         return JSONResponse(ret, status_code=500)
 

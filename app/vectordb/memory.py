@@ -4,10 +4,10 @@ for text and associated metadata, with functionality for saving, searching, and
 managing memory entries.
 """
 
+import os
 from typing import List, Dict, Any, Union
 from .chunking import Chunker
 from .embedding import BaseEmbedder, Embedder
-from .vector_search import VectorSearch
 from .storage import Storage
 import itertools
 
@@ -20,9 +20,9 @@ class Memory:
 
     def __init__(
         self,
+        model: Union[BaseEmbedder, str],
         memory_file: str = None,
         chunking_strategy: dict = None,
-        embeddings: Union[BaseEmbedder, str] = "normal",
     ):
         """
         Initializes the Memory class.
@@ -36,25 +36,25 @@ class Memory:
             [] if memory_file is None else Storage(memory_file).load_from_disk()
         )
         if chunking_strategy is None:
-            chunking_strategy = {"mode": "sliding_window"}
+            chunking_strategy = {"mode": "paragraph"}
         self.chunker = Chunker(chunking_strategy)
 
-        if isinstance(embeddings, str):
-            self.embedder = Embedder(embeddings)
-        elif isinstance(embeddings, BaseEmbedder):
-            self.embedder = embeddings
+        if isinstance(model, str):
+            if os.path.exists(os.path.join(model, "config.json")):
+                self.embedder = Embedder(model)
+            else:
+                raise TypeError("Embeddings must be an Embedder instance or valid model path")
+        elif isinstance(model, BaseEmbedder):
+            self.embedder = model
         else:
-            raise TypeError("Embeddings must be an Embedder instance or string")
-
-        self.vector_search = VectorSearch()
+            raise TypeError("Embeddings must be an Embedder instance or valid model path")
 
 
     def save(
         self,
         texts,
         metadata: Union[List, List[dict], None] = None,
-        memory_file: str = None,
-        embed_at_search: bool = False,
+        memory_file: str = None
     ):
         """
         Saves the given texts and metadata to memory.
@@ -115,7 +115,9 @@ class Memory:
         """
         query_embedding = self.embedder.embed_text([query])[0]
         embeddings = [entry["embedding"] for entry in self.memory]
-        indices = self.vector_search.search_vectors(query_embedding, embeddings, top_n)
+        if len(embeddings) == 0:
+            return []
+        indices = self.embedder.search_vectors(query_embedding, embeddings)
         results = [
             {"chunk": self.memory[i]["chunk"], "metadata": self.memory[i]["metadata"]}
             for i in indices
