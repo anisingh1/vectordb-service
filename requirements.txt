@@ -1,6 +1,7 @@
 loguru
 python-dotenv
-tensorflow_hub
 torch==2.2.0
-vectordb2
+numpy
 sentence_transformers
+uvicorn
+fastapi

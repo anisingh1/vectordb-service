@@ -24,7 +24,7 @@ else
         echo "Downloading model..."
         mkdir -p $parentdir
         cd $parentdir
-        artifactoryPath="https://artifactory-uw2.adobeitc.com/artifactory/generic-g11n-content-release/semanticmatch/${tgtfilename}"
+        artifactoryPath="https://artifactory-uw2.adobeitc.com/artifactory/generic-g11n-content-release/vectordb/${tgtfilename}"
         curl -H "X-JFrog-Art-Api:$token" -L -o $tgtfilename --retry 3 $artifactoryPath
         tar -xzvf $tgtfilename
         rm $tgtfilename

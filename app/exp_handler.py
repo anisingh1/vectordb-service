@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from moderator.interface import (ErrorResponse)
 import uuid
 
-from utils import Logger
+from .utils.log import Logger
 logger = Logger()
 
 

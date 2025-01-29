@@ -1,4 +1,4 @@
-# semanticmatchservice
+# vectordbservice
 This is a simple Python application that listens on port 6006, with the apis detailed below. This application is using [docker-python-v3](https://git.corp.adobe.com/ASR/docker-python-v3) as base docker image.
 
 

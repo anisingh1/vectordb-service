@@ -1,4 +1,4 @@
-import sys, os
+import os
 import json
 import uuid
 import argparse
@@ -16,19 +16,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from utils import LoggerInit, Logger
-from moderator.exp_handler import unhandledExceptionHandler
-from moderator.interface import (HealthResponse, InfoResponse, ErrorResponse)
-from moderator import moderate, chat
+from .exp_handler import unhandledExceptionHandler
+from .interface import (HealthResponse, InfoResponse, ErrorResponse)
+
 
 
 # Setting Global variables
 load_dotenv()
 timeout_keep_alive = 5  # seconds
 logger = Logger()
-served_models = []
-served_llm_model = None
-served_detoxify_model = None
-engine = None
 environment = str(os.environ.get('ENVIRONMENT_NAME')).lower()
 debug = os.environ.get('DEBUG')
 if debug != None and (debug.lower() == 'true' or debug == '1'):
@@ -40,36 +36,19 @@ else:
 # Reading Model Paths
 if os.environ.get('PYTHON_APP_FOLDER') != None:
     model_path = os.path.join(os.environ.get('PYTHON_APP_FOLDER'), 'model')
-    embeddings_model_path = os.path.join(os.environ.get('PYTHON_APP_FOLDER'), 'model', 'all-minilm-l6-v2')
 else:
     if os.environ.get('MODEL_PATH') != None:
         model_path = os.environ.get('MODEL_PATH')
-        served_models.append('llm')
-    else:
-        model_path = None
-        logger.info("LLM model not found.")
-    
-    if os.environ.get('CACHE_MODEL_PATH') != None:
-        embeddings_model_path = os.environ.get('CACHE_MODEL_PATH')
-        served_models.append('cache')
-    else:
-        embeddings_model_path = None
-        logger.info("Embeddings model not found. Cache will not be used.")
 
-if len(served_models) == 0:
-    raise Exception("No model found to serve.")
+if not os.path.exists(os.path.join(model_path, "config.json")):
+    raise Exception("Model not found.")
 
 
 # Reading model versions
-served_llm_model = None
-if 'llm' in served_models:
-    llm_model_config = os.path.join(model_path, 'config.json')
-    max_model_len = 4096
-    with open(llm_model_config) as f:
-        conf = json.load(f)
-        if conf['max_position_embeddings'] < 4096:
-            max_model_len = conf['max_position_embeddings']
-        served_llm_model = conf['_name_or_path']
+model_config = os.path.join(model_path, 'config.json')
+with open(model_config) as f:
+    conf = json.load(f)
+    served_model = conf['_name_or_path']
 
 
 # Initialize logger
@@ -77,7 +56,7 @@ LoggerInit()
 
 
 # Setting configurable parameters
-parser = argparse.ArgumentParser(description="vLLM RESTful API server.")
+parser = argparse.ArgumentParser(description="RESTful API server.")
 
 # uvicorn parameters
 parser.add_argument("--host", type=str, default='0.0.0.0', help="Hostname")
@@ -107,25 +86,14 @@ parser.add_argument("--allowed-headers",
                             default=["*"],
                             help="allowed headers")
 
-# vllm parameters
-sys.argv.extend(['--model', model_path])
-sys.argv.extend(['--disable-log-requests'])
-sys.argv.extend(['--disable-log-stats'])
-sys.argv.extend(['--enforce-eager'])
-sys.argv.extend(['--dtype', 'float16'])
-sys.argv.extend(['--max-model-len', str(max_model_len)])
-
-moderator = moderate(parser, served_llm_model)
-chatbot = chat(parser, served_llm_model)
 
 # Start Vector DB
-if 'cache' in served_models:
-    vector_store = Memory(embeddings=embeddings_model_path)
-    vector_store.save("Hello World", {'category': ''})
+vector_store = Memory(embeddings=model_path)
+vector_store.save("Hello", 'World')
 
 # FastAPI app
-app = FastAPI(title="Harm & Bias Service",
-    summary="Content moderation service based on LLMs",
+app = FastAPI(title="VectorDB Service",
+    summary="Vector Cache service to store and search embeddings",
     version="0.1",
     openapi_tags=[
         {
@@ -155,121 +123,86 @@ async def health() -> Response:
 
 # Get Models Info API
 @app.get('/v1/info')
-async def info() -> Response:
-    model_paths = []
-    if 'llm' in served_models:
-        model_paths.append(os.path.basename(served_llm_model))
-    if 'detoxify' in served_models:
-        model_paths.append(os.path.basename(served_detoxify_model))
-        
+async def info() -> Response:        
     return JSONResponse(
-        InfoResponse(models=model_paths).model_dump(), status_code=200)
+        InfoResponse(models=[model_path]).model_dump(), status_code=200)
 
 
-# Text Moderation API
-@app.post('/v1/moderate')
-async def safetyCheck(request: Request) -> Response:
+
+@app.post('/v1/add')
+async def add(request: Request) -> Response:
+    # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:
         id = str(request_dict.pop("request_id"))
     else:
         id = str(uuid.uuid4())
-    try:
-        models = []
-        prompt = str(request_dict.pop("prompt"))
-        if 'model' in request_dict:
-            model = str(request_dict.pop("model"))
-            if model == None:
-                models = served_models
-            elif model not in served_models:
-                ret = ErrorResponse(request_id=id, code=str(422001), error="Requested model not found").model_dump()
-                logger.error(e)
-                return JSONResponse(ret, status_code=422)
-            else:
-                models.append(model)
-        else:
-            models = served_models
-            
-        region = None
-        if "region" in request_dict:
-            region = str(request_dict.pop("region"))
-    except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `prompt` missing in request").model_dump()
+
+    if 'text' in request_dict:
+        text = str(request_dict.pop("text"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `text` missing in request").model_dump()
         logger.error(e)
         return JSONResponse(ret, status_code=422)
 
+    if 'metadata' in request_dict:
+        metadata = request_dict.pop("metadata")
+    else:
+        metadata = ''
+
     try:
-        try:
-            prompt_words = prompt.split()
-            filtered_prompt = [w for w in prompt_words if not w.lower() in stopwords]
-            filtered_prompt = ' '.join(filtered_prompt)
-            if 'cache' in models:
-                cached_results = vector_store.search(filtered_prompt, 1)
-                if len(cached_results) == 1 and cached_results[0]['distance'] == 0:
-                    metadata = cached_results[0]['metadata']['category'].split(',')
-                    safe = True
-                    category = []
-                    if len(metadata) > 0 and metadata[0] != '':
-                        safe = False
-                        category = metadata
-                    ret = {
-                        "request_id": id,
-                        "model": "cache",
-                        "input": prompt,
-                        "safe": safe,
-                        "category": category
-                    }
-                    return JSONResponse(ret)
-        except Exception as e:
-            ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong").model_dump()
-            logger.error(ret)
-            pass
-        
-        result = await moderator.run(prompt, request, id, models, region)
-        if 'safe' in result:
-            if 'cache' in models:
-                vector_store.save(filtered_prompt, {'category': ','.join(result['category'])})
-            return JSONResponse(result)
-        elif 'error' in result:
-            ret = ErrorResponse(request_id=id, code=str(500), error=result['error']).model_dump()
-            logger.error(result['error'])
-            return JSONResponse(ret, status_code=500)
+        vector_store.save(text=text, metadata=metadata)
+        ret = {
+            "request_id": id
+        }
+        return JSONResponse(ret)
         
     except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong").model_dump()
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + e).model_dump()
         logger.error(e)
         return JSONResponse(ret, status_code=500)
 
 
-# Chat API
-@app.post('/v1/chat')
-async def chat(request: Request) -> Response:
+@app.post('/v1/search')
+async def add(request: Request) -> Response:
+    # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:
         id = str(request_dict.pop("request_id"))
     else:
         id = str(uuid.uuid4())
-    try:
-        tokens = 4096
-        prompt = str(request_dict.pop("prompt"))
-        if "tokens" in request_dict:
-            tokens = request_dict.pop("tokens")
-    except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `prompt` missing in request").model_dump()
+
+    if 'text' in request_dict:
+        text = str(request_dict.pop("text"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `text` missing in request").model_dump()
         logger.error(e)
         return JSONResponse(ret, status_code=422)
 
-    try:
-        result = await chatbot.run(prompt, request, id, tokens)
-        if 'error' in result:
-            ret = ErrorResponse(request_id=id, code=str(500), error=result['error']).model_dump()
-            logger.error(result['error'])
-            return JSONResponse(ErrorResponse(request_id=id, code=str(500), error="Something went wrong").model_dump(), status_code=500)
-        else:
-            return JSONResponse(result)
+    if 'top_n' in request_dict:
+        top_n = request_dict.pop("top_n")
+    else:
+        top_n = 3
 
+    try:
+        cached_results = vector_store.search(text=text, top_n=top_n)
+        if len(cached_results) == 1 and cached_results[0]['distance'] == 0:
+            metadata = cached_results[0]['metadata']
+            ret = {
+                "request_id": id,
+                "text": text,
+                "metadata": metadata
+            }
+        else:
+            ret = {
+                "request_id": id,
+                "text": text,
+                "metadata": []
+            }
+        return JSONResponse(ret)
+        
     except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong").model_dump()
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + e).model_dump()
         logger.error(e)
         return JSONResponse(ret, status_code=500)
 

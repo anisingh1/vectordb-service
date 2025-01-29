@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Semantic Match Service",
+    "title": "VectorDB Service",
     "description": "LLM chat completion service",
     "version": "0.0.1"
   },

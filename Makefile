@@ -6,7 +6,7 @@ ifneq (,$(wildcard ./.env))
     export
 endif
 
-IMAGE_NAME=semanticmatch
+IMAGE_NAME=vectordb
 ARTIFACTORY_DOWNLOAD=docker-asr-release
 ARTIFACTORY_UPLOAD=docker-g11n-content-release
 DOCKER_ID=$(notdir $(MODEL_PATH))

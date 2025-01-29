@@ -6,7 +6,7 @@
             "label": "downloadmodel",
             "command": "./scripts/download.sh",
             "args": [
-                "model/llamaguard"
+                "model/paraphrase-multilingual-MiniLM-L12-v2"
             ],
             "group": "build",
             "presentation": {
