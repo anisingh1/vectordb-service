@@ -1,0 +1,142 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Semantic Match Service",
+    "description": "LLM chat completion service",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/v1/models": {
+      "get": {
+        "tags": [
+          "v1"
+        ],
+        "summary": "List of deployed models",
+        "operationId": "v1_models_get",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "example": {
+                  "object": "list",
+                  "data": [
+                    {
+                      "id": "model/llama2_13b_chat",
+                      "object": "model",
+                      "created": 1699671163,
+                      "owned_by": "vllm",
+                      "root": "model/llama2_13b_chat",
+                      "parent": null,
+                      "permission": [
+                        {
+                          "id": "modelperm-bd36cd5f5f964fe5b3468e831a03afd5",
+                          "object": "model_permission",
+                          "created": 1699671163,
+                          "allow_create_engine": false,
+                          "allow_sampling": true,
+                          "allow_logprobs": true,
+                          "allow_search_indices": false,
+                          "allow_view": true,
+                          "allow_fine_tuning": false,
+                          "organization": "*",
+                          "group": null,
+                          "is_blocking": false
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "v1"
+        ],
+        "summary": "Produce chat completions",
+        "operationId": "v1_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/completions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "example": {
+                  "id": "cmpl-59756a44648043dc9607df802c3fa92d",
+                  "object": "chat.completion",
+                  "created": 250555,
+                  "model": "model/llama2_13b_chat",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "message": {
+                        "role": "assistant",
+                        "content": "Hello! How can I assist you today?"
+                      },
+                      "finish_reason": "stop"
+                    }
+                  ],
+                  "usage": {
+                    "prompt_tokens": 16,
+                    "total_tokens": 26,
+                    "completion_tokens": 10
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "completions": {
+        "properties": {
+          "messages": {
+            "type": "string",
+            "title": "Messages",
+            "description": "User input messages"
+          },
+          "model": {
+            "type": "string",
+            "title": "model",
+            "description": "model to be sued for chat completion"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens",
+            "description": "Maximum tokens to be generated while producing chat completion",
+            "default": 1024
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages",
+          "model"
+        ],
+        "title": "completions"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "v1",
+      "description": "Version 1 API(s)"
+    }
+  ]
+}

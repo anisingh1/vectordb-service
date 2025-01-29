@@ -1,0 +1,50 @@
+version: v1
+namespace: "{{autopopulated_during_deployment}}"
+cluster: "{{autopopulated_during_deployment}}"
+provider: "{{autopopulated_during_deployment}}"
+prometheus:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 350m
+      memory: 512Mi
+    limits:
+      memory: 1024Mi
+alertmanager:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 150m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+proxy_sidecar:
+  adobenet_groups:
+    - fda1cda6-581a-4db0-8845-639ced0acd54
+  client_id: 628c47a2-3aa8-43f7-854d-60d898bf4b4e
+  resource_id: 628c47a2-3aa8-43f7-854d-60d898bf4b4e
+  client_app_secret:
+    provider: cst_vault
+    secret_ref: cloudtech_g11n/contentauditor/common 
+    field: AZURE_APP_SECRET
+remote_write:
+  # Mandatory
+  # Url where metrics will be shipped
+  # Use the endpoints mentioned here - https://git.corp.adobe.com/gmon/docs#prometheus---remote-write
+  # For Dev/Stage environment use: https://nacho.aws1217.adobeitc.com/api/prom/push
+  # For Prod environment use: https://pacho.aws1142.adobeitc.com/api/prom/push
+  url: "https://nacho.aws1217.adobeitc.com/api/prom/push" 
+  send_exemplars: true
+  # Mandatory
+  # Follow instruction here on how to request bearer token
+  # https://git.corp.adobe.com/gmon/docs#access
+  # Note: use bearer token which has write access
+  bearer_token_secret:
+    # Mandatory
+    provider: cst_vault
+    # Mandatory
+    # Secret reference path for the secret store (CST vault)
+    secret_ref: cloudtech_g11n/contentauditor/stage
+    # Mandatory
+    # Field containing your secret
+    field: CORTEX_WRITE

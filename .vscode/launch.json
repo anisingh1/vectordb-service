@@ -1,0 +1,35 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Service",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/main.py",
+            "args": [
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "6006"
+            ],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false
+        },
+        {
+            "name": "Run Performance",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/tests/performance/test.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "GEVENT_SUPPORT": "True"
+            },
+            "justMyCode": false
+        }
+    ]
+}

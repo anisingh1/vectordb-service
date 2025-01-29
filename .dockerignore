@@ -1,0 +1,7 @@
+.git*
+!.git/HEAD
+README.md
+version.txt
+.venv
+.vscode
+.ethos

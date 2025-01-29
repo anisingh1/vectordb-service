@@ -1,0 +1,28 @@
+# vim swp files
+.vimrc
+*.swp
+
+# OSX os files
+.DS_Store
+.DS_Store?
+
+# SASS
+.sass-cache
+*.css.map
+
+# intellij
+.idea
+
+# python
+*.pyc
+.venv
+
+# logs
+*.log
+
+.env
+build
+model
+deps
+logs
+tests/vllm/dataset.json

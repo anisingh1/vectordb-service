@@ -1,0 +1,34 @@
+#!/bin/bash -e
+
+source /scripts/with-bigcontenv
+
+#WORKERS=`nvidia-smi --list-gpus | wc -l`
+#START_APP="gunicorn --workers ${WORKERS} --bind 0.0.0.0:6006 --timeout 1500 --worker-class uvicorn.workers.UvicornWorker main:app"
+START_APP="python3 ${PYTHON_APP_FOLDER}/main.py --host 0.0.0.0 --port 6006"
+
+# Start flask with New Relic
+if [ "${REPLACE_NEWRELIC_APP}" ] && [ "${REPLACE_NEWRELIC_LICENSE}" ]; then
+  # Per https://docs.newrelic.com/docs/agents/python-agent/installation/advanced-install-new-relic-python-agent
+  # New Relic for python must be started as follows
+  # NEW_RELIC_CONFIG_FILE=newrelic.ini newrelic-admin run-program <prog args>
+  #
+  # However, passing in NEW_RELIC_CONFIG_FILE as a command arg will not work, so export it as an env var instead
+  # So that it's available to the process when invoked. newrelic.ini is created in ${PYTHON_APP_FOLDER}
+  #
+  # Also see https://wiki.corp.adobe.com/x/ILeFVg
+  START_APP="newrelic-admin run-program ${START_APP}"
+
+  # To enable debugging, pass in -e DEBUG_NEWRELIC=1 when starting up docker
+  if [ "${DEBUG_NEWRELIC}" ] && [ -f "${PYTHON_APP_FOLDER}/newrelic.ini" ]; then
+    sed -i.bak 's/#log_file/log_file/' ${PYTHON_APP_FOLDER}/newrelic.ini
+    sed -i.bak 's/log_level = info/log_level = debug/' ${PYTHON_APP_FOLDER}/newrelic.ini
+
+    echo "Enabled debug logging in ${PYTHON_APP_FOLDER}/newrelic.ini"
+  fi
+fi
+
+# Ensure app is running from virtual environment
+. ${PYTHON_VIRTUAL_ENV_FOLDER}/bin/activate
+
+echo "Starting application with command line: ${START_APP}"
+exec s6-setuidgid asruser cd ${PYTHON_APP_FOLDER} ${START_APP}
