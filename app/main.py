@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, time
 import json
 import uuid
 import argparse
@@ -163,7 +163,9 @@ async def add(request: Request) -> Response:
         metadata = ''
 
     try:
+        start_time = time.time()
         vector_store.save(texts=text, metadata=metadata)
+        print("Add Time: " + str(time.time() - start_time))
         ret = {
             "request_id": id
         }
@@ -197,7 +199,9 @@ async def add(request: Request) -> Response:
         top_n = 1
 
     try:
+        start_time = time.time()
         cached_results = vector_store.search(query=text, top_n=top_n)
+        print("Search Time: " + str(time.time() - start_time))
         if len(cached_results) > 0:
             results = []
             for i in cached_results:
