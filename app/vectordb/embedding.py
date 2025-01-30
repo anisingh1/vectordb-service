@@ -1,3 +1,9 @@
+"""
+This module provides classes for generating text embeddings using various pre-trained models.
+"""
+
+# pylint: disable = line-too-long, trailing-whitespace, trailing-newlines, line-too-long, missing-module-docstring, import-error, too-few-public-methods, too-many-instance-attributes, too-many-locals
+
 from abc import ABC, abstractmethod
 from typing import List
 from sentence_transformers import SentenceTransformer
@@ -5,9 +11,10 @@ from sentence_transformers import SentenceTransformer
 
 class BaseEmbedder(ABC):
     """Base class for Embedder."""
+
     @abstractmethod
     def embed_text(self, chunks: List[str]) -> List[List[float]]:
-        ...
+        """Generates embeddings for a list of text chunks."""
 
 
 class Embedder(BaseEmbedder):
@@ -23,9 +30,10 @@ class Embedder(BaseEmbedder):
         :param model_name: a string containing the name of the pre-trained model to be used
         for embeddings.
         """
-        self.sbert = True
+        self.sbert = False
         if model_name == None or model_name == "":
             model_name = "model/paraphrase-multilingual-MiniLM-L12-v2"
+            self.sbert = True
 
         self.model = SentenceTransformer(model_name)
         print("OK.")

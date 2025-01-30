@@ -1,3 +1,6 @@
+
+# pylint: disable = line-too-long, trailing-whitespace, trailing-newlines, line-too-long, missing-module-docstring, import-error, too-few-public-methods, too-many-instance-attributes, too-many-locals
+
 from typing import List
 import re
 
@@ -39,8 +42,8 @@ class Chunker:
     def __call__(self, text: str) -> List[str]:
         if self.strategy == "paragraph":
             return self.paragraph_chunking(text)
-        else:
-            return self.sliding_window_chunking(text)
+
+        return self.sliding_window_chunking(text)
 
 
     def paragraph_chunking(self, text: str) -> List[str]:
@@ -74,6 +77,10 @@ class Chunker:
         text = self.clean_text(text)
 
         tokens = text.split()
+
+        # If the text contains fewer tokens than window_size, return the text as a single chunk.
+        if len(tokens) < self.window_size:
+            return [text]
 
         # Use a list comprehension to create chunks from windows
         step = self.window_size - self.overlap
