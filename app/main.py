@@ -97,7 +97,6 @@ parser.add_argument("--allowed-headers",
 
 # Start Vector DB
 vector_store = Memory(embeddings=model_path)
-vector_store.save("Hello World", 'World')
 served_model = vector_store.get_model_name()
 
 
@@ -162,7 +161,7 @@ async def add(request: Request) -> Response:
 
     try:
         start_time = time.time()
-        vector_store.save(texts=text, metadata=metadata)
+        vector_store.add(texts=text, metadata=metadata)
         print("Add Time: " + str(time.time() - start_time))
         ret = {
             "request_id": id
