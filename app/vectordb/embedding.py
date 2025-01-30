@@ -30,12 +30,10 @@ class Embedder(BaseEmbedder):
         :param model_name: a string containing the name of the pre-trained model to be used
         for embeddings.
         """
-        self.sbert = True
         if model_name == None or model_name == "":
             model_name = "model/paraphrase-multilingual-MiniLM-L12-v2"
 
         self.model = SentenceTransformer(model_name)
-        print("OK.")
 
 
     def embed_text(self, chunks: List[str]) -> List[List[float]]:
@@ -45,8 +43,5 @@ class Embedder(BaseEmbedder):
         :param chunks: a list of strings containing the text chunks to be embedded.
         :return: a list of embeddings, where each embedding is represented as a list of floats.
         """
-        if self.sbert:
-            embeddings = self.model.encode(chunks).tolist()
-        else:
-            embeddings = self.model(chunks).numpy().tolist()
+        embeddings = self.model.encode(chunks).tolist()
         return embeddings

@@ -163,7 +163,7 @@ async def add(request: Request) -> Response:
         metadata = ''
 
     try:
-        vector_store.save(text=text, metadata=metadata)
+        vector_store.save(texts=text, metadata=metadata)
         ret = {
             "request_id": id
         }
@@ -198,12 +198,13 @@ async def add(request: Request) -> Response:
 
     try:
         cached_results = vector_store.search(query=text, top_n=top_n)
-        if len(cached_results) == 1 and cached_results[0]['distance'] == 0:
+        if len(cached_results) > 0:
             results = []
             for i in cached_results:
                 results.append({
                     "text": i['chunk'],
-                    "metadata": i['metadata']
+                    "metadata": i['metadata'],
+                    "distance": round(float(i['distance']),2)
                 })
             ret = {
                 "request_id": id,

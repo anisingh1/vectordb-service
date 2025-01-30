@@ -106,7 +106,6 @@ class Memory:
         chunks_size = [len(chunks) for chunks in text_chunks]
 
         flatten_chunks = list(itertools.chain.from_iterable(text_chunks))
-
         embeddings = self.embedder.embed_text(flatten_chunks)
 
         text_index_start = (
