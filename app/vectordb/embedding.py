@@ -30,10 +30,9 @@ class Embedder(BaseEmbedder):
         :param model_name: a string containing the name of the pre-trained model to be used
         for embeddings.
         """
-        self.sbert = False
+        self.sbert = True
         if model_name == None or model_name == "":
             model_name = "model/paraphrase-multilingual-MiniLM-L12-v2"
-            self.sbert = True
 
         self.model = SentenceTransformer(model_name)
         print("OK.")

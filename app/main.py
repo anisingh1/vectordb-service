@@ -100,7 +100,7 @@ parser.add_argument("--allowed-headers",
 
 
 # Start Vector DB
-vector_store = Memory(embeddings=model_path, chunking_strategy="paragraph")
+vector_store = Memory(embeddings=model_path)
 vector_store.save("Hello World", 'World')
 
 # FastAPI app
