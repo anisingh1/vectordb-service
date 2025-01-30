@@ -161,7 +161,7 @@ async def add(request: Request) -> Response:
 
     try:
         start_time = time.time()
-        vector_store.add(texts=text, metadata=metadata)
+        vector_store.add(text=text, metadata=metadata)
         print("Add Time: " + str(time.time() - start_time))
         ret = {
             "request_id": id
@@ -203,7 +203,7 @@ async def add(request: Request) -> Response:
             results = []
             for i in cached_results:
                 results.append({
-                    "text": i['chunk'],
+                    "text": i['text'],
                     "metadata": i['metadata'],
                     "distance": round(float(i['distance']),2)
                 })

@@ -7,9 +7,7 @@ managing memory entries.
 
 import os, json
 from typing import List, Dict, Any, Union
-import itertools
 
-from .chunking import Chunker
 from .embedding import BaseEmbedder, Embedder
 from .vector_search import VectorSearch
 from .storage import Storage
@@ -24,24 +22,15 @@ class Memory:
 
     def __init__(
         self,
-        embeddings: Union[BaseEmbedder, str],
-        chunking_strategy: dict = None
+        embeddings: Union[BaseEmbedder, str]
     ):
         """
         Initializes the Memory class.
-        :param chunking_strategy: a dictionary containing the chunking mode (default: {"mode": "sliding_window"}).
         :param embedding_model: a string containing the name of the pre-trained model to be used for embeddings (default: "sentence-transformers/all-MiniLM-L6-v2").
         """
         self.threshold = Prefs().getFloatPref('similarity_threshold')
         self.memory = []
-        self.metadata_memory = []
-
-        if chunking_strategy is None:
-            chunking_strategy = {"mode": "sliding_window"}
-        self.chunker = Chunker(chunking_strategy)
-
-        self.metadata_index_counter = 0
-        self.text_index_counter = 0
+        self.index_counter = 0
 
         if isinstance(embeddings, str):
             if os.path.exists(os.path.join(embeddings, "config.json")):
@@ -69,78 +58,31 @@ class Memory:
     ):
         load = Storage(memory_file).load_from_disk()
         self.memory = [] if len(load) != 1 else load[0]["memory"]
-        self.metadata_memory = [] if len(load) != 1 else load[0]["metadata"]
 
 
     def add(
         self,
-        texts: str,
-        metadata: Union[List, List[dict], None] = None
+        text: str,
+        metadata: Union[List, List[dict], dict, str, None] = None
     ):
         """
         Saves the given texts and metadata to memory.
-
         :param texts: a string or a list of strings containing the texts to be saved.
         :param metadata: a dictionary or a list of dictionaries containing the metadata associated with the texts.
         """
-        if not isinstance(texts, list):
-            texts = [texts]
-
-        if metadata is None:
-            metadata = []
-        elif not isinstance(metadata, list):
-            metadata = [metadata]
-
-        # Extend metadata to be the same length as texts, if it's shorter.
-        metadata += [{}] * (len(texts) - len(metadata))
-
-        for meta in metadata:
-            self.metadata_memory.append(meta)
-
-        meta_index_start = (
-            self.metadata_index_counter
-        )  # Starting index for this save operation
-        self.metadata_index_counter += len(
-            metadata
-        )  # Update the counter for future save operations
-
-        text_chunks = [self.chunker(text) for text in texts]
-        chunks_size = [len(chunks) for chunks in text_chunks]
-
-        flatten_chunks = list(itertools.chain.from_iterable(text_chunks))
-        embeddings = self.embedder.embed_text(flatten_chunks)
-
-        text_index_start = (
-            self.text_index_counter
-        )  # Starting index for this save operation
-        self.text_index_counter += len(texts)
-
-        # accumulated size is end_index of each chunk
-        for size, end_index, chunks, meta_index, text_index in zip(
-            chunks_size,
-            itertools.accumulate(chunks_size),
-            text_chunks,
-            range(meta_index_start, self.metadata_index_counter),
-            range(text_index_start, self.text_index_counter),
-        ):
-            start_index = end_index - size
-            chunks_embedding = embeddings[start_index:end_index]
-
-            for chunk, embedding in zip(chunks, chunks_embedding):
-                entry = {
-                    "chunk": chunk,
-                    "embedding": embedding,
-                    "metadata_index": meta_index,
-                    "text_index": text_index,
-                }
-                self.memory.append(entry)
-                self.vector_search.add_index(embedding)
+        embedding = self.embedder.embed_text(text)
+        entry = {
+            "text": text,
+            "metadata": metadata
+        }
+        self.memory.append(entry)
+        self.vector_search.add_index(embedding)
+        self.index_counter += 1
 
 
     def search(self, query: str, top_n: int = 1, unique: bool = False) -> List[Dict[str, Any]]:
         """
         Searches for the most similar chunks to the given query in memory.
-
         :param query: a string containing the query text.
         :param top_n: the number of most similar chunks to return. (default: 5)
         :param unique: chunks are filtered out to unique texts (default: False)
@@ -171,13 +113,12 @@ class Memory:
 
         results = [
             {
-                "chunk": self.memory[i[0]]["chunk"],
-                "metadata": self.metadata_memory[self.memory[i[0]]["metadata_index"]],
+                "text": self.memory[i[0]]["text"],
+                "metadata": self.memory[i[0]]["metadata"],
                 "distance": i[1],
             }
             for i in indices
         ]
-
         return results
 
 
@@ -186,9 +127,7 @@ class Memory:
         Clears the memory.
         """
         self.memory = []
-        self.metadata_memory = []
-        self.metadata_index_counter = 0
-        self.text_index_counter = 0
+        self.index_counter = 0
 
 
     def save(
@@ -198,4 +137,4 @@ class Memory:
         """
         Saves the contents of the memory to file.
         """
-        Storage(memory_file).save_to_disk([{"memory": self.memory, "metadata" :self.metadata_memory}])
+        Storage(memory_file).save_to_disk([{"memory": self.memory}])
