@@ -5,7 +5,7 @@ managing memory entries.
 """
 # pylint: disable = line-too-long, trailing-whitespace, trailing-newlines, line-too-long, missing-module-docstring, import-error, too-few-public-methods, too-many-instance-attributes, too-many-locals
 
-import os
+import os, json
 from typing import List, Dict, Any, Union
 import itertools
 
@@ -54,15 +54,22 @@ class Memory:
         if isinstance(embeddings, str):
             if os.path.exists(os.path.join(embeddings, "config.json")):
                 self.embedder = Embedder(embeddings)
+                model_config = os.path.join(embeddings, 'config.json')
+                with open(model_config) as f:
+                    conf = json.load(f)
+                    self.embedding_dimension = conf['hidden_size']
+                    self.model_name = conf['_name_or_path']
             else:
                 raise TypeError("Embeddings must be an Embedder instance or valid model path")
-        elif isinstance(embeddings, BaseEmbedder):
-            self.embedder = embeddings
         else:
             raise TypeError("Embeddings must be an Embedder instance or valid model path")
 
-        self.vector_search = VectorSearch()
+        self.vector_search = VectorSearch(self.embedding_dimension)
 
+
+    def get_model_name(self):
+        return self.model_name
+    
 
     def save(
         self,

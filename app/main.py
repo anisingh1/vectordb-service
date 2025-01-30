@@ -38,15 +38,11 @@ else:
     if os.environ.get('MODEL_PATH') != None:
         model_path = os.environ.get('MODEL_PATH')
 
+
+served_model = ""
+embedding_dimension = 0
 if not os.path.exists(os.path.join(model_path, "config.json")):
     raise Exception("Model not found.")
-
-
-# Reading model versions
-model_config = os.path.join(model_path, 'config.json')
-with open(model_config) as f:
-    conf = json.load(f)
-    served_model = conf['_name_or_path']
 
 
 # Initialize logger
@@ -102,6 +98,8 @@ parser.add_argument("--allowed-headers",
 # Start Vector DB
 vector_store = Memory(embeddings=model_path)
 vector_store.save("Hello World", 'World')
+served_model = vector_store.get_model_name()
+
 
 # FastAPI app
 app = FastAPI(title="VectorDB Service",
@@ -137,7 +135,7 @@ async def health() -> Response:
 @app.get('/v1/info')
 async def info() -> Response:        
     return JSONResponse(
-        InfoResponse(models=[model_path]).model_dump(), status_code=200)
+        InfoResponse(models=[served_model]).model_dump(), status_code=200)
 
 
 

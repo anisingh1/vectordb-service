@@ -13,6 +13,11 @@ class VectorSearch:
     """
     A class to perform vector search using different methods (MRPT, Faiss, or scikit-learn).
     """
+    
+    def __init__(self, dim):
+        #self.index = faiss.IndexFlatL2(dim)
+        self.index = faiss.IndexIDMap(faiss.IndexFlatIP(dim))
+        
 
     @staticmethod
     def get_unique_k_elements(i, d, k=15, diverse=False):
@@ -44,29 +49,46 @@ class VectorSearch:
         return np.array(ii), np.array(dd)
 
 
-    @staticmethod
-    def run_faiss(vector, vectors, k=15, batch_results="flatten"):
+    def run_faiss_L2(self, query_vector, vectors, k=15, batch_results="flatten"):
         """
         Search for the most similar vectors using Faiss method.
         """
-        index = faiss.IndexFlatL2(vectors.shape[1])
-        index.add(vectors)
+        self.index.add(vectors)
+        if (isinstance(query_vector, (list, np.ndarray)) and len(np.shape(query_vector)) > 1):  # If vector is a list of vectors
 
-        if (
-            isinstance(vector, (list, np.ndarray)) and len(np.shape(vector)) > 1
-        ):  # If vector is a list of vectors
-
-            dis, indices = index.search(np.array(vector), k)
+            dis, indices = self.index.search(np.array(query_vector), k)
 
             if batch_results == "diverse":
                 return VectorSearch.get_unique_k_elements(indices, dis, k, diverse=True)
             return VectorSearch.get_unique_k_elements(indices, dis, k, diverse=False)
-        dis, indices = index.search(np.array([vector]), k)
+        dis, indices = self.index.search(np.array([query_vector]), k)
         return indices[0], dis[0]
 
 
-    @staticmethod
+    def run_faiss_cosine(self, query_vector, vectors, k=15, batch_results="flatten"):
+        """
+        Search for the most similar vectors using Faiss method.
+        """
+        try:
+            faiss.normalize_L2(vectors)
+            self.index.add_with_ids(vectors, np.arange(len(vectors)))
+            if (isinstance(query_vector, (list, np.ndarray)) and len(np.shape(query_vector)) > 1):  # If vector is a list of vectors
+                faiss.normalize_L2(query_vector)
+                dis, indices = self.index.search(np.array(query_vector), k)
+
+                if batch_results == "diverse":
+                    return VectorSearch.get_unique_k_elements(indices, dis, k, diverse=True)
+                return VectorSearch.get_unique_k_elements(indices, dis, k, diverse=False)
+            faiss.normalize_L2(query_vector)
+            dis, indices = self.index.search(np.array([query_vector]), k)
+            return indices[0], dis[0]
+        except Exception as e:
+            print(e)
+            return [], []
+    
+    
     def search_vectors(
+        self,
         query_embedding: List[float],
         embeddings: List[List[float]],
         top_n: int,
@@ -88,6 +110,5 @@ class VectorSearch:
         if isinstance(embeddings, list):
             embeddings = np.array(embeddings).astype(np.float32)
 
-        call_search = VectorSearch.run_faiss
-        indices, dis = call_search(query_embedding, embeddings, top_n, batch_results)
+        indices, dis = self.run_faiss_cosine(query_embedding, embeddings, top_n, batch_results)
         return list(zip(indices, dis))

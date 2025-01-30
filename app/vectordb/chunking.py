@@ -3,6 +3,7 @@
 
 from typing import List
 import re
+import string
 
 
 class Chunker:
@@ -33,9 +34,10 @@ class Chunker:
         :param text: a string containing the text to be cleaned.
         :return: a cleaned version of the input text.
         """
-        # Remove extra whitespaces
+        text = text.lower()
+        url_removed = re.sub(r'https\S+', '', text, flags=re.MULTILINE)
+        text = re.sub("[^a-zA-Z]", " ", url_removed)
         text = re.sub(r"\s+", " ", text).strip()
-
         return text
 
 
@@ -75,7 +77,6 @@ class Chunker:
             )
 
         text = self.clean_text(text)
-
         tokens = text.split()
 
         # If the text contains fewer tokens than window_size, return the text as a single chunk.
@@ -89,5 +90,4 @@ class Chunker:
             " ".join(tokens[i : i + self.window_size])
             for i in range(0, len(tokens) - self.window_size + step, step)
         ]
-
         return chunks

@@ -4,5 +4,6 @@ python-dotenv
 torch
 numpy==1.26.4
 sentence_transformers
+faiss-cpu
 uvicorn
 fastapi
