@@ -100,7 +100,7 @@ parser.add_argument("--allowed-headers",
 
 
 # Start Vector DB
-vector_store = Memory(model=model_path)
+vector_store = Memory(embeddings=model_path, chunking_strategy="paragraph")
 vector_store.save("Hello World", 'World')
 
 # FastAPI app
@@ -194,10 +194,10 @@ async def add(request: Request) -> Response:
     if 'top_n' in request_dict:
         top_n = request_dict.pop("top_n")
     else:
-        top_n = 3
+        top_n = 1
 
     try:
-        cached_results = vector_store.search(query=text, top_n=1)
+        cached_results = vector_store.search(query=text, top_n=top_n)
         if len(cached_results) == 1 and cached_results[0]['distance'] == 0:
             results = []
             for i in cached_results:

@@ -16,7 +16,6 @@ class Storage:
         """
         self.memory_file = memory_file
 
-
     def save_to_disk(self, data: List[Dict[str, Any]]):
         """
         Saves a list of dictionaries containing data to the memory file.
@@ -25,7 +24,6 @@ class Storage:
         """
         with open(self.memory_file, "wb") as file_handler:
             pickle.dump(data, file_handler)
-
 
     def load_from_disk(self) -> List[Dict[str, Any]]:
         """

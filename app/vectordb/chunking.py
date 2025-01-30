@@ -72,6 +72,7 @@ class Chunker:
             )
 
         text = self.clean_text(text)
+
         tokens = text.split()
 
         # Use a list comprehension to create chunks from windows
@@ -81,4 +82,5 @@ class Chunker:
             " ".join(tokens[i : i + self.window_size])
             for i in range(0, len(tokens) - self.window_size + step, step)
         ]
+
         return chunks

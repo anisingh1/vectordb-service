@@ -8,6 +8,7 @@ import os
 from typing import List, Dict, Any, Union
 from .chunking import Chunker
 from .embedding import BaseEmbedder, Embedder
+from .vector_search import VectorSearch
 from .storage import Storage
 import itertools
 
@@ -20,9 +21,9 @@ class Memory:
 
     def __init__(
         self,
-        model: Union[BaseEmbedder, str],
+        embeddings: Union[BaseEmbedder, str],
         memory_file: str = None,
-        chunking_strategy: dict = None,
+        chunking_strategy: dict = None
     ):
         """
         Initializes the Memory class.
@@ -36,18 +37,19 @@ class Memory:
             [] if memory_file is None else Storage(memory_file).load_from_disk()
         )
         if chunking_strategy is None:
-            chunking_strategy = {"mode": "paragraph"}
+            chunking_strategy = {"mode": "sliding_window"}
         self.chunker = Chunker(chunking_strategy)
 
-        if isinstance(model, str):
-            if os.path.exists(os.path.join(model, "config.json")):
-                self.embedder = Embedder(model)
+        if isinstance(embeddings, str):
+            if os.path.exists(os.path.join(embeddings, "config.json")):
+                self.embedder = Embedder(embeddings)
             else:
                 raise TypeError("Embeddings must be an Embedder instance or valid model path")
-        elif isinstance(model, BaseEmbedder):
-            self.embedder = model
+        elif isinstance(embeddings, BaseEmbedder):
+            self.embedder = embeddings
         else:
-            raise TypeError("Embeddings must be an Embedder instance or valid model path")
+            raise TypeError("Embeddings must be an Embedder instance or string")
+        self.vector_search = VectorSearch()
 
 
     def save(
@@ -115,9 +117,7 @@ class Memory:
         """
         query_embedding = self.embedder.embed_text([query])[0]
         embeddings = [entry["embedding"] for entry in self.memory]
-        if len(embeddings) == 0:
-            return []
-        indices = self.embedder.search_vectors(query_embedding, embeddings)
+        indices = self.vector_search.search_vectors(query_embedding, embeddings, top_n)
         results = [
             {"chunk": self.memory[i]["chunk"], "metadata": self.memory[i]["metadata"]}
             for i in indices
