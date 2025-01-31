@@ -97,7 +97,6 @@ parser.add_argument("--allowed-headers",
 
 # Start Vector DB
 vector_store = Memory(embeddings=model_path)
-#vector_store.add_from_file("memory.pkl")
 served_model = vector_store.get_model_name()
 
 
@@ -138,8 +137,7 @@ async def info() -> Response:
         InfoResponse(models=[served_model]).model_dump(), status_code=200)
 
 
-
-@app.post('/v1/add')
+@app.post('/v1/vector/add')
 async def add(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
@@ -147,6 +145,13 @@ async def add(request: Request) -> Response:
         id = str(request_dict.pop("request_id"))
     else:
         id = str(uuid.uuid4())
+        
+    if 'db' in request_dict:
+        db = str(request_dict.pop("db"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=422)
 
     if 'text' in request_dict:
         text = str(request_dict.pop("text"))
@@ -161,7 +166,7 @@ async def add(request: Request) -> Response:
         metadata = ''
 
     try:
-        vector_store.add(text=text, metadata=metadata)
+        vector_store.add(db_name=db, text=text, metadata=metadata)
         ret = {
             "request_id": id
         }
@@ -173,7 +178,7 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=500)
 
 
-@app.post('/v1/search')
+@app.post('/v1/vector/search')
 async def add(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
@@ -182,6 +187,13 @@ async def add(request: Request) -> Response:
     else:
         id = str(uuid.uuid4())
 
+    if 'db' in request_dict:
+        db = str(request_dict.pop("db"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=422)
+    
     if 'text' in request_dict:
         text = str(request_dict.pop("text"))
     else:
@@ -195,7 +207,7 @@ async def add(request: Request) -> Response:
         top_n = 1
 
     try:
-        cached_results = vector_store.search(query=text, top_n=top_n)
+        cached_results = vector_store.search(db_name=db, query=text, top_n=top_n)
         if len(cached_results) > 0:
             results = []
             for i in cached_results:
@@ -221,7 +233,7 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=500)
 
 
-@app.post('/v1/backup')
+@app.post('/v1/index/backup')
 async def add(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
@@ -230,8 +242,15 @@ async def add(request: Request) -> Response:
     else:
         id = str(uuid.uuid4())
     
+    if 'db' in request_dict:
+        db = str(request_dict.pop("db"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=422)
+    
     try:
-        cache = vector_store.save()
+        cache = vector_store.save(db_name=db)
         headers = {'Content-Disposition': 'attachment; filename="memory.pkl"'}
         return Response(cache, headers=headers, media_type='application/octet-stream')
     except Exception as e:
@@ -240,7 +259,7 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=500)
     
 
-@app.post('/v1/restore')
+@app.post('/v1/index/restore')
 async def add(cache: bytes = File()) -> Response:
     id = str(uuid.uuid4())
     try:
@@ -255,7 +274,7 @@ async def add(cache: bytes = File()) -> Response:
         return JSONResponse(ret, status_code=500)
     
     
-@app.post('/v1/purge')
+@app.post('/v1/index/purge')
 async def add(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
@@ -264,8 +283,15 @@ async def add(request: Request) -> Response:
     else:
         id = str(uuid.uuid4())
 
+    if 'db' in request_dict:
+        db = str(request_dict.pop("db"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=422)
+    
     try:
-        vector_store.clean(q=100)
+        vector_store.clean(db_name=db, q=100)
         ret = {
             "request_id": id
         }

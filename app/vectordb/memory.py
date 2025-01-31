@@ -9,9 +9,17 @@ import os, json
 import pickle
 from typing import List, Dict, Any, Union
 
-from .embedding import BaseEmbedder, Embedder
-from .index import VectorIndex
+from .embedding import Embedder
+from .indexer import VectorIndex
 from utils import Logger
+
+
+class DB(object):
+    def __init__(self, size: int, threshold: float, embedding_dimension: int):
+        self.memory = []
+        self.vector_index = VectorIndex(embedding_dimension)
+        self.size = size
+        self.threshold = threshold
 
 
 logger = Logger()
@@ -20,71 +28,70 @@ class Memory:
     Memory class represents a memory storage system for text and associated metadata.
     It provides functionality for saving, searching, and managing memory entries.
     """
+    
+    def __init__(self, model_path: str):
+        self.db = Dict[str, DB]
+        if os.path.exists(os.path.join(model_path, "config.json")):
+            self.embedder = Embedder(model_path)
+            model_config = os.path.join(model_path, 'config.json')
+            with open(model_config) as f:
+                conf = json.load(f)
+                self.embedding_dimension = conf['hidden_size']
+                self.model_name = conf['_name_or_path']
+        else:
+            raise TypeError("Model not found.")
+        
 
-    def __init__(
+    def create_db(
         self,
-        embeddings: Union[BaseEmbedder, str],
+        db_name: str,
         size: int = 10000,
         threshold: float = 0.5
-    ):
-        """
-        Initializes the Memory class.
-        :param embedding_model: a string containing the name of the pre-trained model to be used for embeddings (default: "sentence-transformers/all-MiniLM-L6-v2").
-        """
-        self.threshold = threshold
-        self.size = size
-        self.memory = []
-        self.index_counter = 0
-
-        if isinstance(embeddings, str):
-            if os.path.exists(os.path.join(embeddings, "config.json")):
-                self.embedder = Embedder(embeddings)
-                model_config = os.path.join(embeddings, 'config.json')
-                with open(model_config) as f:
-                    conf = json.load(f)
-                    self.embedding_dimension = conf['hidden_size']
-                    self.model_name = conf['_name_or_path']
-            else:
-                raise TypeError("Embeddings must be an Embedder instance or valid model path")
-        else:
-            raise TypeError("Embeddings must be an Embedder instance or valid model path")
-        self.vector_index = VectorIndex(self.embedding_dimension)
+    ) -> None:
+        self.db[db_name] = DB(size, threshold, self.embedding_dimension)
 
 
-    def get_model_name(self):
-        return self.model_name
+    def delete_db(
+        self,
+        db_name: str
+    ) -> None:
+        del self.db[db_name]
+        
     
-    
-    def add_from_file(
+    def restore_db(
         self, 
         memory_file: bytes
-    ):
+    ) -> None:
         try:
             load = pickle.loads(memory_file)
-            record_count = len(load)
-            
-            if record_count > self.size:
-                record_count = self.size
+            db_name = load['db']
+            threshold = load['threshold']
+            record_count = len(load['cache'])
 
-            self.memory = load[:record_count]
-            self.index_counter = record_count-1
+            self.db[db_name] = DB(record_count, threshold, self.embedding_dimension)
+            self.db[db_name].memory = load
             for i in range(record_count):
-                self.vector_index.add_index(self.embedder.embed_text(self.memory[i]["text"]))
+                self.db[db_name].vector_index.add_index(self.embedder.embed_text(self.db[db_name].memory[i]["text"]))
         except Exception as e:
             raise Exception(f"Failed to load memory file: {e}")
+        
+        
+    def get_model_name(self) -> str:
+        return self.model_name
 
 
     def add(
         self,
+        db_name: str,
         text: str,
         metadata: Union[List, List[dict], dict, str, None] = None
-    ):
+    ) -> None:
         """
         Saves the given texts and metadata to memory.
         :param texts: a string or a list of strings containing the texts to be saved.
         :param metadata: a dictionary or a list of dictionaries containing the metadata associated with the texts.
         """
-        if self.index_counter == self.size:
+        if len(self.db[db_name].memory) >= self.db[db_name].size:
             self.clean(q=20)
             
         embedding = self.embedder.embed_text(text)
@@ -92,12 +99,17 @@ class Memory:
             "text": text,
             "metadata": metadata
         }
-        self.memory.append(entry)
-        self.vector_index.add_index(embedding)
-        self.index_counter += 1
+        self.db[db_name].memory.append(entry)
+        self.db[db_name].vector_index.add_index(embedding)
 
 
-    def search(self, query: str, top_n: int = 1, unique: bool = False) -> List[Dict[str, Any]]:
+    def search(
+        self, 
+        db_name: str,
+        query: str, 
+        top_n: int = 1, 
+        unique: bool = False
+    ) -> List[Dict[str, Any]]:
         """
         Searches for the most similar chunks to the given query in memory.
         :param query: a string containing the query text.
@@ -111,12 +123,12 @@ class Memory:
         else:
             query_embedding = self.embedder.embed_text([query])[0]
 
-        indices = self.vector_index.search_index(query_embedding, top_n)
+        indices = self.db[db_name].vector_index.search_index(query_embedding, top_n)
         if unique:
             unique_indices = []
             seen_text_indices = set()  # Change the variable name
             for i in indices:
-                text_index = self.memory[i[0]][
+                text_index = self.db[db_name].memory[i[0]][
                     "text_index"
                 ]  # Use text_index instead of metadata_index
                 if (
@@ -130,38 +142,51 @@ class Memory:
 
         results = []
         for i in indices:
-            if i[1] > self.threshold:
+            if i[1] > self.db[db_name].threshold:
                 results.append({
-                    "text": self.memory[i[0]]["text"],
-                    "metadata": self.memory[i[0]]["metadata"],
+                    "text": self.db[db_name].memory[i[0]]["text"],
+                    "metadata": self.db[db_name].memory[i[0]]["metadata"],
                     "distance": i[1]
                 })
         return results
 
 
-    def clean(self, q=20):
+    def clean(
+        self, 
+        db_name: str,
+        q=20
+    ) -> None:
         """
         Clears the memory of earlier added entries
         """
         if q == 100:
-            new_start_index = self.vector_index.index.ntotal
+            new_start_index = self.db[db_name].vector_index.index.ntotal
             index_to_remove = list(range(0, new_start_index-1, 1))
-            self.vector_index.remove_index(index_to_remove)
-            self.memory = []
-            self.index_counter = 0
+            self.db[db_name].vector_index.remove_index(index_to_remove)
+            self.db[db_name].memory = []
         elif q > 0 and q < 100:
             new_start_index = int((self.index_counter * q) / 100)
             index_to_remove = list(range(0, new_start_index-1, 1))
-            self.vector_index.remove_index(index_to_remove)
-            self.memory = self.memory[new_start_index:]
-            self.index_counter = self.index_counter - new_start_index
+            self.db[db_name].vector_index.remove_index(index_to_remove)
+            self.db[db_name].memory = self.db[db_name].memory[new_start_index:]
 
 
     def save(
-        self
-    ):
+        self,
+        db_name: str
+    ) -> bytes:
         """
         Saves the contents of the memory to file.
         """
-        data = pickle.dumps(self.memory)
-        return data
+        if db_name in self.db:        
+            data = pickle.dumps(
+                {
+                    'db': db_name, 
+                    'size': self.db[db_name].size,
+                    'threshold': self.db[db_name].threshold, 
+                    'memory': self.db[db_name].memory
+                }
+            )
+            return data
+        else:
+            raise Exception("Database not found.")
