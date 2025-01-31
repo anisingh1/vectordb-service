@@ -4,7 +4,7 @@ This module provides the VectorIndex class for performing vector search using va
 
 # pylint: disable = line-too-long, trailing-whitespace, trailing-newlines, line-too-long, missing-module-docstring, import-error, too-few-public-methods, too-many-instance-attributes, too-many-locals
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import numpy as np
 import faiss
 from utils import Logger
@@ -35,7 +35,7 @@ class VectorIndex:
     
     def remove_index(
         self, 
-        index: int | List[int]
+        index: Union[int, List[int]]
     ) -> None:
         if isinstance(index, int):
             index = [index]
@@ -60,7 +60,6 @@ class VectorIndex:
         if isinstance(query_vector, list):
             query_vector = np.array(query_vector).astype(np.float32)
 
-        indices, dis = self.run_faiss(query_vector, top_n)
         try:
             if top_n > self.index.ntotal:
                 top_n = self.index.ntotal

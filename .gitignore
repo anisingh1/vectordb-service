@@ -25,4 +25,8 @@ build
 model
 deps
 logs
-tests/vllm/dataset.json
+
+# app debugging specific files
+memory.pkl
+Tasks1
+Tasks

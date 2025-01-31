@@ -33,7 +33,6 @@ class Memory:
         self.size = size
         self.memory = []
         self.index_counter = 0
-        self.vector_index = VectorIndex(self.embedding_dimension)
 
         if isinstance(embeddings, str):
             if os.path.exists(os.path.join(embeddings, "config.json")):
@@ -47,6 +46,7 @@ class Memory:
                 raise TypeError("Embeddings must be an Embedder instance or valid model path")
         else:
             raise TypeError("Embeddings must be an Embedder instance or valid model path")
+        self.vector_index = VectorIndex(self.embedding_dimension)
 
 
     def get_model_name(self):
@@ -58,12 +58,15 @@ class Memory:
         memory_file: str = None
     ):
         load = Storage(memory_file).load_from_disk()
-        len = len(load)
+        record_count = len(load)
         
-        if len(load) > self.size:
-            len = self.size
-            
-        self.memory = [] if len(load) != 1 else load[0]["memory"]
+        if record_count > self.size:
+            record_count = self.size
+
+        self.memory = load[:record_count]
+        self.index_counter = record_count-1
+        for i in range(record_count):
+            self.vector_index.add_index(self.embedder.embed_text(self.memory[i]["text"]))
 
 
     def add(
@@ -150,10 +153,9 @@ class Memory:
 
 
     def save(
-        self,
-        memory_file: str
+        self
     ):
         """
         Saves the contents of the memory to file.
         """
-        Storage(memory_file).save_to_disk([{"memory": self.memory}])
+        Storage("memory.pkl").save_to_disk(self.memory)

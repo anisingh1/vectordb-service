@@ -43,5 +43,5 @@ class Embedder(BaseEmbedder):
         :param chunks: a list of strings containing the text chunks to be embedded.
         :return: a list of embeddings, where each embedding is represented as a list of floats.
         """
-        embeddings = self.model.encode(chunks).tolist()
+        embeddings = self.model.encode(sentences=chunks, show_progress_bar=False).tolist()
         return embeddings

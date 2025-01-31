@@ -1,4 +1,5 @@
 import os, sys, time
+import base64
 import json
 import uuid
 import argparse
@@ -9,7 +10,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
@@ -97,6 +98,7 @@ parser.add_argument("--allowed-headers",
 
 # Start Vector DB
 vector_store = Memory(embeddings=model_path)
+#vector_store.add_from_file("memory.pkl")
 served_model = vector_store.get_model_name()
 
 
@@ -220,6 +222,50 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=500)
 
 
+@app.post('/v1/backup')
+async def add(request: Request) -> Response:
+    # Reading input request data
+    request_dict = await request.json()
+    if 'request_id' in request_dict:
+        id = str(request_dict.pop("request_id"))
+    else:
+        id = str(uuid.uuid4())
+    
+    try:
+        vector_store.save()
+        
+    except Exception as e:
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=500)
+    
+
+@app.post('/v1/restore')
+async def add(request: Request) -> Response:
+    # Reading input request data
+    request_dict = await request.json()
+    if 'request_id' in request_dict:
+        id = str(request_dict.pop("request_id"))
+    else:
+        id = str(uuid.uuid4())
+    
+    if 'cache' in request_dict:
+        cache = str(request_dict.pop("cache"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `cache` missing in request").model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=422)
+        
+    try:
+        data = base64.b64decode(cache)
+        vector_store.add_from_file(data)
+        
+    except Exception as e:
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=500)
+    
+    
 @app.post('/v1/purge')
 async def add(request: Request) -> Response:
     # Reading input request data

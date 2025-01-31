@@ -14,7 +14,7 @@ class Storage:
     A class to handle saving and loading data to and from a memory file.
     """
 
-    def __init__(self, memory_file: str = "long_memory.pkl"):
+    def __init__(self, memory_file: str):
         """
         Initializes the Storage with a specified memory file.
 
