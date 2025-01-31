@@ -27,5 +27,5 @@ deps
 logs
 
 # app debugging specific files
-memory.pkl
+memory*.pkl
 Tasks

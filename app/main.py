@@ -1,5 +1,4 @@
-import os, sys, time
-import base64
+import os, sys
 import json
 import uuid
 import argparse
@@ -10,7 +9,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Request, UploadFile
+from fastapi import FastAPI, Request, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
@@ -232,8 +231,9 @@ async def add(request: Request) -> Response:
         id = str(uuid.uuid4())
     
     try:
-        vector_store.save()
-        
+        cache = vector_store.save()
+        headers = {'Content-Disposition': 'inline; filename="memory.pkl"'}
+        return Response(cache, headers=headers, media_type='application/octet-stream')
     except Exception as e:
         ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
         logger.error(e)
@@ -241,25 +241,14 @@ async def add(request: Request) -> Response:
     
 
 @app.post('/v1/restore')
-async def add(request: Request) -> Response:
-    # Reading input request data
-    request_dict = await request.json()
-    if 'request_id' in request_dict:
-        id = str(request_dict.pop("request_id"))
-    else:
-        id = str(uuid.uuid4())
-    
-    if 'cache' in request_dict:
-        cache = str(request_dict.pop("cache"))
-    else:
-        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `cache` missing in request").model_dump()
-        logger.error(e)
-        return JSONResponse(ret, status_code=422)
-        
+async def add(cache: bytes = File()) -> Response:
+    id = str(uuid.uuid4())
     try:
-        data = base64.b64decode(cache)
-        vector_store.add_from_file(data)
-        
+        vector_store.add_from_file(cache)
+        ret = {
+            "request_id": id
+        }
+        return JSONResponse(ret)
     except Exception as e:
         ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
         logger.error(e)

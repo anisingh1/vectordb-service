@@ -6,13 +6,15 @@ managing memory entries.
 # pylint: disable = line-too-long, trailing-whitespace, trailing-newlines, line-too-long, missing-module-docstring, import-error, too-few-public-methods, too-many-instance-attributes, too-many-locals
 
 import os, json
+import pickle
 from typing import List, Dict, Any, Union
 
 from .embedding import BaseEmbedder, Embedder
 from .index import VectorIndex
-from .storage import Storage
+from utils import Logger
 
 
+logger = Logger()
 class Memory:
     """
     Memory class represents a memory storage system for text and associated metadata.
@@ -55,18 +57,21 @@ class Memory:
     
     def add_from_file(
         self, 
-        memory_file: str = None
+        memory_file: bytes
     ):
-        load = Storage(memory_file).load_from_disk()
-        record_count = len(load)
-        
-        if record_count > self.size:
-            record_count = self.size
+        try:
+            load = pickle.loads(memory_file)
+            record_count = len(load)
+            
+            if record_count > self.size:
+                record_count = self.size
 
-        self.memory = load[:record_count]
-        self.index_counter = record_count-1
-        for i in range(record_count):
-            self.vector_index.add_index(self.embedder.embed_text(self.memory[i]["text"]))
+            self.memory = load[:record_count]
+            self.index_counter = record_count-1
+            for i in range(record_count):
+                self.vector_index.add_index(self.embedder.embed_text(self.memory[i]["text"]))
+        except Exception as e:
+            raise Exception(f"Failed to load memory file: {e}")
 
 
     def add(
@@ -158,4 +163,5 @@ class Memory:
         """
         Saves the contents of the memory to file.
         """
-        Storage("memory.pkl").save_to_disk(self.memory)
+        data = pickle.dumps(self.memory)
+        return data

@@ -67,6 +67,8 @@ class VectorIndex:
             query_vector = np.array([query_vector])
             faiss.normalize_L2(query_vector)
             dis, indices = self.index.search(query_vector, top_n)
+        except AssertionError as e:
+            return []
         except Exception as e:
             raise Exception(f"Faiss search failed: {e}")
         
