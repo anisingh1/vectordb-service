@@ -9,9 +9,8 @@ import os, json
 from typing import List, Dict, Any, Union
 
 from .embedding import BaseEmbedder, Embedder
-from .vector_search import VectorSearch
+from .index import VectorIndex
 from .storage import Storage
-from utils import Prefs
 
 
 class Memory:
@@ -22,15 +21,19 @@ class Memory:
 
     def __init__(
         self,
-        embeddings: Union[BaseEmbedder, str]
+        embeddings: Union[BaseEmbedder, str],
+        size: int = 10000,
+        threshold: float = 0.5
     ):
         """
         Initializes the Memory class.
         :param embedding_model: a string containing the name of the pre-trained model to be used for embeddings (default: "sentence-transformers/all-MiniLM-L6-v2").
         """
-        self.threshold = Prefs().getFloatPref('similarity_threshold')
+        self.threshold = threshold
+        self.size = size
         self.memory = []
         self.index_counter = 0
+        self.vector_index = VectorIndex(self.embedding_dimension)
 
         if isinstance(embeddings, str):
             if os.path.exists(os.path.join(embeddings, "config.json")):
@@ -45,8 +48,6 @@ class Memory:
         else:
             raise TypeError("Embeddings must be an Embedder instance or valid model path")
 
-        self.vector_search = VectorSearch(self.embedding_dimension)
-
 
     def get_model_name(self):
         return self.model_name
@@ -57,6 +58,11 @@ class Memory:
         memory_file: str = None
     ):
         load = Storage(memory_file).load_from_disk()
+        len = len(load)
+        
+        if len(load) > self.size:
+            len = self.size
+            
         self.memory = [] if len(load) != 1 else load[0]["memory"]
 
 
@@ -70,13 +76,16 @@ class Memory:
         :param texts: a string or a list of strings containing the texts to be saved.
         :param metadata: a dictionary or a list of dictionaries containing the metadata associated with the texts.
         """
+        if self.index_counter == self.size:
+            self.clean(q=20)
+            
         embedding = self.embedder.embed_text(text)
         entry = {
             "text": text,
             "metadata": metadata
         }
         self.memory.append(entry)
-        self.vector_search.add_index(embedding)
+        self.vector_index.add_index(embedding)
         self.index_counter += 1
 
 
@@ -94,7 +103,7 @@ class Memory:
         else:
             query_embedding = self.embedder.embed_text([query])[0]
 
-        indices = self.vector_search.search_vectors(query_embedding, top_n)
+        indices = self.vector_index.search_index(query_embedding, top_n)
         if unique:
             unique_indices = []
             seen_text_indices = set()  # Change the variable name
@@ -111,23 +120,33 @@ class Memory:
                     )  # Use seen_text_indices instead of seen_meta_indices
             indices = unique_indices
 
-        results = [
-            {
-                "text": self.memory[i[0]]["text"],
-                "metadata": self.memory[i[0]]["metadata"],
-                "distance": i[1],
-            }
-            for i in indices
-        ]
+        results = []
+        for i in indices:
+            if i[1] > self.threshold:
+                results.append({
+                    "text": self.memory[i[0]]["text"],
+                    "metadata": self.memory[i[0]]["metadata"],
+                    "distance": i[1]
+                })
         return results
 
 
-    def clear(self):
+    def clean(self, q=20):
         """
-        Clears the memory.
+        Clears the memory of earlier added entries
         """
-        self.memory = []
-        self.index_counter = 0
+        if q == 100:
+            new_start_index = self.vector_index.index.ntotal
+            index_to_remove = list(range(0, new_start_index-1, 1))
+            self.vector_index.remove_index(index_to_remove)
+            self.memory = []
+            self.index_counter = 0
+        elif q > 0 and q < 100:
+            new_start_index = int((self.index_counter * q) / 100)
+            index_to_remove = list(range(0, new_start_index-1, 1))
+            self.vector_index.remove_index(index_to_remove)
+            self.memory = self.memory[new_start_index:]
+            self.index_counter = self.index_counter - new_start_index
 
 
     def save(

@@ -160,9 +160,7 @@ async def add(request: Request) -> Response:
         metadata = ''
 
     try:
-        start_time = time.time()
         vector_store.add(text=text, metadata=metadata)
-        print("Add Time: " + str(time.time() - start_time))
         ret = {
             "request_id": id
         }
@@ -196,9 +194,7 @@ async def add(request: Request) -> Response:
         top_n = 1
 
     try:
-        start_time = time.time()
         cached_results = vector_store.search(query=text, top_n=top_n)
-        print("Search Time: " + str(time.time() - start_time))
         if len(cached_results) > 0:
             results = []
             for i in cached_results:
@@ -224,6 +220,28 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=500)
 
 
+@app.post('/v1/purge')
+async def add(request: Request) -> Response:
+    # Reading input request data
+    request_dict = await request.json()
+    if 'request_id' in request_dict:
+        id = str(request_dict.pop("request_id"))
+    else:
+        id = str(uuid.uuid4())
+
+    try:
+        vector_store.clean(q=100)
+        ret = {
+            "request_id": id
+        }
+        return JSONResponse(ret)
+        
+    except Exception as e:
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=500)
+    
+    
 args = parser.parse_args()
 app.add_middleware(
     CORSMiddleware,
