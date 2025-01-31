@@ -232,7 +232,7 @@ async def add(request: Request) -> Response:
     
     try:
         cache = vector_store.save()
-        headers = {'Content-Disposition': 'inline; filename="memory.pkl"'}
+        headers = {'Content-Disposition': 'attachment; filename="memory.pkl"'}
         return Response(cache, headers=headers, media_type='application/octet-stream')
     except Exception as e:
         ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
