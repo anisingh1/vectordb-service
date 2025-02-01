@@ -49,15 +49,46 @@ class Memory:
         threshold: float = 0.5
     ) -> None:
         self.db[db_name] = DB(size, threshold, self.embedding_dimension)
-
-
-    def delete_db(
-        self,
-        db_name: str
-    ) -> None:
-        del self.db[db_name]
         
     
+    def clean_db(
+        self, 
+        db_name: str,
+        q=20
+    ) -> None:
+        """
+        Clears the memory of earlier added entries
+        """
+        if q == 100:
+            del self.db[db_name]
+        elif q > 0 and q < 100:
+            new_start_index = int((self.index_counter * q) / 100)
+            index_to_remove = list(range(0, new_start_index-1, 1))
+            self.db[db_name].vector_index.remove_index(index_to_remove)
+            self.db[db_name].memory = self.db[db_name].memory[new_start_index:]
+
+
+    def save_db(
+        self,
+        db_name: str
+    ) -> bytes:
+        """
+        Saves the contents of the memory to file.
+        """
+        if db_name in self.db:        
+            data = pickle.dumps(
+                {
+                    'db': db_name, 
+                    'size': self.db[db_name].size,
+                    'threshold': self.db[db_name].threshold, 
+                    'memory': self.db[db_name].memory
+                }
+            )
+            return data
+        else:
+            raise Exception("Database not found.")
+        
+        
     def restore_db(
         self, 
         memory_file: bytes
@@ -91,16 +122,19 @@ class Memory:
         :param texts: a string or a list of strings containing the texts to be saved.
         :param metadata: a dictionary or a list of dictionaries containing the metadata associated with the texts.
         """
-        if len(self.db[db_name].memory) >= self.db[db_name].size:
-            self.clean(q=20)
-            
-        embedding = self.embedder.embed_text(text)
-        entry = {
-            "text": text,
-            "metadata": metadata
-        }
-        self.db[db_name].memory.append(entry)
-        self.db[db_name].vector_index.add_index(embedding)
+        try:
+            if len(self.db[db_name].memory) >= self.db[db_name].size:
+                self.clean(q=20)
+                
+            embedding = self.embedder.embed_text(text)
+            entry = {
+                "text": text,
+                "metadata": metadata
+            }
+            self.db[db_name].memory.append(entry)
+            self.db[db_name].vector_index.add_index(embedding)
+        except Exception as e:
+            raise Exception(e)
 
 
     def search(
@@ -149,44 +183,3 @@ class Memory:
                     "distance": i[1]
                 })
         return results
-
-
-    def clean(
-        self, 
-        db_name: str,
-        q=20
-    ) -> None:
-        """
-        Clears the memory of earlier added entries
-        """
-        if q == 100:
-            new_start_index = self.db[db_name].vector_index.index.ntotal
-            index_to_remove = list(range(0, new_start_index-1, 1))
-            self.db[db_name].vector_index.remove_index(index_to_remove)
-            self.db[db_name].memory = []
-        elif q > 0 and q < 100:
-            new_start_index = int((self.index_counter * q) / 100)
-            index_to_remove = list(range(0, new_start_index-1, 1))
-            self.db[db_name].vector_index.remove_index(index_to_remove)
-            self.db[db_name].memory = self.db[db_name].memory[new_start_index:]
-
-
-    def save(
-        self,
-        db_name: str
-    ) -> bytes:
-        """
-        Saves the contents of the memory to file.
-        """
-        if db_name in self.db:        
-            data = pickle.dumps(
-                {
-                    'db': db_name, 
-                    'size': self.db[db_name].size,
-                    'threshold': self.db[db_name].threshold, 
-                    'memory': self.db[db_name].memory
-                }
-            )
-            return data
-        else:
-            raise Exception("Database not found.")

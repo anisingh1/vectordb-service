@@ -30,10 +30,13 @@ class Embedder(BaseEmbedder):
         :param model_name: a string containing the name of the pre-trained model to be used
         for embeddings.
         """
-        if model_name == None or model_name == "":
-            model_name = "model/paraphrase-multilingual-MiniLM-L12-v2"
+        try:
+            if model_name == None or model_name == "":
+                model_name = "model/paraphrase-multilingual-MiniLM-L12-v2"
 
-        self.model = SentenceTransformer(model_name)
+            self.model = SentenceTransformer(model_name)
+        except Exception as e:
+            raise TypeError(f"Model not found: {e}")
 
 
     def embed_text(self, chunks: List[str]) -> List[List[float]]:

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from fastapi import FastAPI, Request, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, FileResponse, Response
 
 from utils import LoggerInit, Logger
 from utils.interface import (HealthResponse, InfoResponse, ErrorResponse)
@@ -233,7 +233,7 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=500)
 
 
-@app.post('/v1/index/backup')
+@app.post('/v1/memory/create')
 async def add(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
@@ -249,21 +249,18 @@ async def add(request: Request) -> Response:
         logger.error(e)
         return JSONResponse(ret, status_code=422)
     
+    if 'size' in request_dict:
+        size = request_dict.pop("size")
+    else:
+        size = 10000
+        
+    if 'threshold' in request_dict:
+        threshold = request_dict.pop("threshold")
+    else:
+        threshold = 0.5
+        
     try:
-        cache = vector_store.save(db_name=db)
-        headers = {'Content-Disposition': 'attachment; filename="memory.pkl"'}
-        return Response(cache, headers=headers, media_type='application/octet-stream')
-    except Exception as e:
-        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
-        logger.error(e)
-        return JSONResponse(ret, status_code=500)
-    
-
-@app.post('/v1/index/restore')
-async def add(cache: bytes = File()) -> Response:
-    id = str(uuid.uuid4())
-    try:
-        vector_store.add_from_file(cache)
+        vector_store.create_db(db_name=db, size=size, threshold=threshold)
         ret = {
             "request_id": id
         }
@@ -274,7 +271,48 @@ async def add(cache: bytes = File()) -> Response:
         return JSONResponse(ret, status_code=500)
     
     
-@app.post('/v1/index/purge')
+@app.post('/v1/memory/backup')
+async def add(request: Request) -> Response:
+    # Reading input request data
+    request_dict = await request.json()
+    if 'request_id' in request_dict:
+        id = str(request_dict.pop("request_id"))
+    else:
+        id = str(uuid.uuid4())
+    
+    if 'db' in request_dict:
+        db = str(request_dict.pop("db"))
+    else:
+        ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=422)
+    
+    try:
+        cache = vector_store.save_db(db_name=db)
+        headers = {'Content-Disposition': 'attachment; filename="memory.pkl"'}
+        return FileResponse(cache, headers=headers, media_type='application/octet-stream')
+    except Exception as e:
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=500)
+    
+
+@app.post('/v1/memory/restore')
+async def add(cache: bytes = File()) -> Response:
+    id = str(uuid.uuid4())
+    try:
+        vector_store.restore_db(memory_file=cache)
+        ret = {
+            "request_id": id
+        }
+        return JSONResponse(ret)
+    except Exception as e:
+        ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
+        logger.error(e)
+        return JSONResponse(ret, status_code=500)
+    
+    
+@app.post('/v1/memory/purge')
 async def add(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
@@ -291,7 +329,7 @@ async def add(request: Request) -> Response:
         return JSONResponse(ret, status_code=422)
     
     try:
-        vector_store.clean(db_name=db, q=100)
+        vector_store.clean_db(db_name=db, q=100)
         ret = {
             "request_id": id
         }

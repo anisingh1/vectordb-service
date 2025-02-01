@@ -24,25 +24,31 @@ class VectorIndex:
         self, 
         query_vector: List[float]
     ) -> None:
-        if isinstance(query_vector, list):
-            query_vector = np.array(query_vector).astype(np.float32)
-        
-        query_vector = np.array([query_vector])
-        faiss.normalize_L2(query_vector)
-        self.index.add(query_vector)
-        return
+        try:
+            if isinstance(query_vector, list):
+                query_vector = np.array(query_vector).astype(np.float32)
+            
+            query_vector = np.array([query_vector])
+            faiss.normalize_L2(query_vector)
+            self.index.add(query_vector)
+            return
+        except Exception as e:
+            raise Exception(e)
     
     
     def remove_index(
         self, 
         index: Union[int, List[int]]
     ) -> None:
-        if isinstance(index, int):
-            index = [index]
-        
-        ids_to_remove = np.array(index, dtype=np.int64)
-        self.index.remove_ids(ids_to_remove)
-        return
+        try:
+            if isinstance(index, int):
+                index = [index]
+            
+            ids_to_remove = np.array(index, dtype=np.int64)
+            self.index.remove_ids(ids_to_remove)
+            return
+        except Exception as e:
+            raise Exception(e)
 
     
     def search_index(
