@@ -96,7 +96,7 @@ parser.add_argument("--allowed-headers",
 
 
 # Start Vector DB
-vector_store = Memory(embeddings=model_path)
+vector_store = Memory(model_path=model_path)
 served_model = vector_store.get_model_name()
 
 
