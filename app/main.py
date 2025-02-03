@@ -47,7 +47,6 @@ if not os.path.exists(os.path.join(model_path, "config.json")):
 
 # Default Preferences
 default_db_size = Prefs().getIntPref("db_size")
-default_threshold = Prefs().getFloatPref("threshold")
         
 
 # Initialize logger
@@ -254,13 +253,8 @@ async def create_memory(request: Request) -> Response:
     else:
         size = default_db_size
         
-    if 'threshold' in request_dict:
-        threshold = request_dict.pop("threshold")
-    else:
-        threshold = default_threshold
-        
     try:
-        vector_store.create_db(db_name=db, size=size, threshold=threshold)
+        vector_store.create_db(db_name=db, size=size)
         ret = {
             "request_id": id
         }

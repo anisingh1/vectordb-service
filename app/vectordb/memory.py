@@ -15,12 +15,11 @@ from utils import Logger
 
 
 class DB():
-    def __init__(self, size: int, threshold: float, embedding_dimension: int):
+    def __init__(self, size: int, embedding_dimension: int):
         try:
             self.memory = []
             self.vector_index = VectorIndex(embedding_dimension)
             self.size = size
-            self.threshold = threshold
         except Exception as e:
             raise Exception(e)
 
@@ -48,10 +47,9 @@ class Memory:
     def create_db(
         self,
         db_name: str,
-        size: int,
-        threshold: float
+        size: int
     ) -> None:   
-        dbObj = DB(size, threshold, self.embedding_dimension)
+        dbObj = DB(size, self.embedding_dimension)
         self.db[db_name] = dbObj
         
     
@@ -83,8 +81,7 @@ class Memory:
             data = pickle.dumps(
                 {
                     'db': db_name, 
-                    'size': self.db[db_name].size,
-                    'threshold': self.db[db_name].threshold, 
+                    'size': self.db[db_name].size, 
                     'memory': self.db[db_name].memory
                 }
             )
@@ -100,11 +97,10 @@ class Memory:
         try:
             load = pickle.loads(memory_file)
             db_name = load['db']
-            threshold = load['threshold']
             size = load['size']
             record_count = len(load['memory'])
 
-            self.db[db_name] = DB(size, threshold, self.embedding_dimension)
+            self.db[db_name] = DB(size, self.embedding_dimension)
             self.db[db_name].memory = load['memory']
             for i in range(record_count):
                 self.db[db_name].vector_index.add_index(self.embedder.embed_text(self.db[db_name].memory[i]["text"]))
@@ -186,10 +182,9 @@ class Memory:
 
         results = []
         for i in indices:
-            if i[1] > self.db[db_name].threshold:
-                results.append({
-                    "text": self.db[db_name].memory[i[0]]["text"],
-                    "metadata": self.db[db_name].memory[i[0]]["metadata"],
-                    "distance": i[1]
-                })
+            results.append({
+                "text": self.db[db_name].memory[i[0]]["text"],
+                "metadata": self.db[db_name].memory[i[0]]["metadata"],
+                "distance": i[1]
+            })
         return results
