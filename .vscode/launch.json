@@ -20,10 +20,10 @@
             "justMyCode": false
         },
         {
-            "name": "Run Performance",
+            "name": "Prepare DB",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/tests/performance/test.py",
+            "program": "${workspaceFolder}/tests/create_db.py",
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env",
             "env": {

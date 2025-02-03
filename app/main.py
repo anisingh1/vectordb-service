@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, Response
 
-from utils import LoggerInit, Logger
+from utils import LoggerInit, Logger, Prefs
 from utils.interface import (HealthResponse, InfoResponse, ErrorResponse)
 from vectordb import Memory
 
@@ -44,6 +44,11 @@ embedding_dimension = 0
 if not os.path.exists(os.path.join(model_path, "config.json")):
     raise Exception("Model not found.")
 
+
+# Default Preferences
+default_db_size = Prefs().getIntPref("db_size")
+default_threshold = Prefs().getFloatPref("threshold")
+        
 
 # Initialize logger
 LoggerInit()
@@ -150,14 +155,12 @@ async def add_vector(request: Request) -> Response:
         db = str(request_dict.pop("db"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
 
     if 'text' in request_dict:
         text = str(request_dict.pop("text"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `text` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
 
     if 'metadata' in request_dict:
@@ -191,14 +194,12 @@ async def search_vector(request: Request) -> Response:
         db = str(request_dict.pop("db"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
     
     if 'text' in request_dict:
         text = str(request_dict.pop("text"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `text` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
 
     if 'top_n' in request_dict:
@@ -246,18 +247,17 @@ async def create_memory(request: Request) -> Response:
         db = str(request_dict.pop("db"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
     
     if 'size' in request_dict:
         size = request_dict.pop("size")
     else:
-        size = 10000
+        size = default_db_size
         
     if 'threshold' in request_dict:
         threshold = request_dict.pop("threshold")
     else:
-        threshold = 0.5
+        threshold = default_threshold
         
     try:
         vector_store.create_db(db_name=db, size=size, threshold=threshold)
@@ -284,13 +284,12 @@ async def backup_memory(request: Request) -> Response:
         db = str(request_dict.pop("db"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
     
     try:
         cache = vector_store.save_db(db_name=db)
         headers = {'Content-Disposition': 'attachment; filename="memory.pkl"'}
-        return FileResponse(cache, headers=headers, media_type='application/octet-stream')
+        return Response(cache, headers=headers, media_type='application/octet-stream')
     except Exception as e:
         ret = ErrorResponse(request_id=id, code=str(500), error="Something went wrong: " + str(e)).model_dump()
         logger.error(e)
@@ -325,7 +324,6 @@ async def purge_memory(request: Request) -> Response:
         db = str(request_dict.pop("db"))
     else:
         ret = ErrorResponse(request_id=id, code=str(422001), error="Required field `db` missing in request").model_dump()
-        logger.error(e)
         return JSONResponse(ret, status_code=422)
     
     try:

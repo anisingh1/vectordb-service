@@ -1,2 +1,4 @@
 locust
 pytz
+greenlet
+tqdm

@@ -9,17 +9,20 @@ import os, json
 import pickle
 from typing import List, Dict, Any, Union
 
-from .embedding import Embedder
+from .embedder import Embedder
 from .indexer import VectorIndex
 from utils import Logger
 
 
-class DB(object):
+class DB():
     def __init__(self, size: int, threshold: float, embedding_dimension: int):
-        self.memory = []
-        self.vector_index = VectorIndex(embedding_dimension)
-        self.size = size
-        self.threshold = threshold
+        try:
+            self.memory = []
+            self.vector_index = VectorIndex(embedding_dimension)
+            self.size = size
+            self.threshold = threshold
+        except Exception as e:
+            raise Exception(e)
 
 
 logger = Logger()
@@ -30,7 +33,7 @@ class Memory:
     """
     
     def __init__(self, model_path: str):
-        self.db = Dict[str, DB]
+        self.db: Dict[str, DB] = {}
         if os.path.exists(os.path.join(model_path, "config.json")):
             self.embedder = Embedder(model_path)
             model_config = os.path.join(model_path, 'config.json')
@@ -45,10 +48,11 @@ class Memory:
     def create_db(
         self,
         db_name: str,
-        size: int = 10000,
-        threshold: float = 0.5
-    ) -> None:
-        self.db[db_name] = DB(size, threshold, self.embedding_dimension)
+        size: int,
+        threshold: float
+    ) -> None:   
+        dbObj = DB(size, threshold, self.embedding_dimension)
+        self.db[db_name] = dbObj
         
     
     def clean_db(
@@ -97,10 +101,11 @@ class Memory:
             load = pickle.loads(memory_file)
             db_name = load['db']
             threshold = load['threshold']
-            record_count = len(load['cache'])
+            size = load['size']
+            record_count = len(load['memory'])
 
-            self.db[db_name] = DB(record_count, threshold, self.embedding_dimension)
-            self.db[db_name].memory = load
+            self.db[db_name] = DB(size, threshold, self.embedding_dimension)
+            self.db[db_name].memory = load['memory']
             for i in range(record_count):
                 self.db[db_name].vector_index.add_index(self.embedder.embed_text(self.db[db_name].memory[i]["text"]))
         except Exception as e:
