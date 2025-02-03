@@ -138,7 +138,7 @@ async def info() -> Response:
 
 
 @app.post('/v1/vector/add')
-async def add(request: Request) -> Response:
+async def add_vector(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:
@@ -179,7 +179,7 @@ async def add(request: Request) -> Response:
 
 
 @app.post('/v1/vector/search')
-async def add(request: Request) -> Response:
+async def search_vector(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:
@@ -234,7 +234,7 @@ async def add(request: Request) -> Response:
 
 
 @app.post('/v1/memory/create')
-async def add(request: Request) -> Response:
+async def create_memory(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:
@@ -272,7 +272,7 @@ async def add(request: Request) -> Response:
     
     
 @app.post('/v1/memory/backup')
-async def add(request: Request) -> Response:
+async def backup_memory(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:
@@ -298,7 +298,7 @@ async def add(request: Request) -> Response:
     
 
 @app.post('/v1/memory/restore')
-async def add(cache: bytes = File()) -> Response:
+async def restore_memory(cache: bytes = File()) -> Response:
     id = str(uuid.uuid4())
     try:
         vector_store.restore_db(memory_file=cache)
@@ -313,7 +313,7 @@ async def add(cache: bytes = File()) -> Response:
     
     
 @app.post('/v1/memory/purge')
-async def add(request: Request) -> Response:
+async def purge_memory(request: Request) -> Response:
     # Reading input request data
     request_dict = await request.json()
     if 'request_id' in request_dict:

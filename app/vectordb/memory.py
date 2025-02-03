@@ -123,6 +123,9 @@ class Memory:
         :param metadata: a dictionary or a list of dictionaries containing the metadata associated with the texts.
         """
         try:
+            if db_name not in self.db:
+                raise Exception("Database not found.")
+            
             if len(self.db[db_name].memory) >= self.db[db_name].size:
                 self.clean(q=20)
                 
@@ -151,6 +154,8 @@ class Memory:
         :param unique: chunks are filtered out to unique texts (default: False)
         :return: a list of dictionaries containing the top_n most similar chunks and their associated metadata.
         """
+        if db_name not in self.db:
+            raise Exception("Database not found.")
 
         if isinstance(query, list):
             query_embedding = self.embedder.embed_text(query)
