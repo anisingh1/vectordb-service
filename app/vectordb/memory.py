@@ -44,6 +44,20 @@ class Memory:
             raise TypeError("Model not found.")
         
 
+    def list_db(self) -> List[dict]:
+        """
+        Returns a list of all the databases in memory.
+        """
+        dbs = []
+        for i in self.db:
+            db_info = {}
+            db_info["name"] = i
+            db_info["size"] = self.db[i].size
+            db_info["record_count"] = len(self.db[i].memory)
+            dbs.append(db_info)
+        return dbs
+    
+        
     def create_db(
         self,
         db_name: str,

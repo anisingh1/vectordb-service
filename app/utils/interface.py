@@ -12,6 +12,7 @@ class HealthResponse(BaseModel):
 
 class InfoResponse(BaseModel):
     models: List[str]
+    dbs: List[dict]
 
 
 class ErrorResponse(BaseModel):

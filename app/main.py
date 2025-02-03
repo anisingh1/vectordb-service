@@ -136,9 +136,13 @@ async def health() -> Response:
 
 # Get Models Info API
 @app.get('/v1/info')
-async def info() -> Response:        
+async def info() -> Response:  
+    dbs = vector_store.list_db()      
     return JSONResponse(
-        InfoResponse(models=[served_model]).model_dump(), status_code=200)
+        InfoResponse(
+            models=[served_model],
+            db=dbs
+        ).model_dump(), status_code=200)
 
 
 @app.post('/v1/vector/add')
