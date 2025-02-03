@@ -63,6 +63,6 @@ class _Prefs:
 			return ""
 
 			
-prefsPath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "config.cfg")
+prefsPath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.cfg")
 _prefsObj = _Prefs(prefsPath)
 def Prefs(): return _prefsObj
